@@ -22,7 +22,9 @@ Solving the first problem is straightforward - Chrome extensions allow users to 
 
 For the buffer dump issue, further research was necessary. I went through many popular and trending videos on YouTube with different video quality selections and varying video duration to track how many seconds a video can buffer before its buffer is dumped. It was immediately apparent that while there is some effect tied to video quality and video duration, it's not consistent across multiple videos of the same combination. Even though two different videos have the same video resolution and the same duration, they would not have the same data size.
 
-So instead of relying on the video's duration and resolution, I looked into another more stable metric that tracks buffer data size. The answer came in the form of a property on the [HTMLVideoElement](https://wiki.whatwg.org/wiki/Video_Metrics) that has been implemented by Webkit: webkitVideoDecodedByteCount. This metric gives a good representation of the buffer data size. Plotting the decoded bitrate against the most number of seconds we can buffer looks like this: ![](https://cl.ly/03c10b3d6aa0/Image%202019-08-10%20at%203.23.53%20PM.png)
+So instead of relying on the video's duration and resolution, I looked into another more stable metric that tracks buffer data size. The answer came in the form of a property on the [HTMLVideoElement](https://wiki.whatwg.org/wiki/Video_Metrics) that has been implemented by Webkit: webkitVideoDecodedByteCount. This metric gives a good representation of the buffer data size. Plotting the decoded bitrate against the most number of seconds we can buffer looks like this:
+
+<img src="https://cl.ly/03c10b3d6aa0/Image%202019-08-10%20at%203.23.53%20PM.png" alt="Plot graph of bitrate and number of seconds of buffer." width="604px" height="371px">
 
 There's a clear logarithmic relationship between the buffering bitrate and buffer dump. Performing a regression analysis based on our dataset yields a logarithmic model with a correlation coefficient of -0.9164. While it's a decent starting point, implementing the logarithmic formula showed issues with buffer dumping on both long tails of the bitrate chart. To make it more reliable, I took the inflection point near the midpoint of both tails (at 150kbps), split the dataset into two with one including bitrates under 150kbps the other above 150kbps, then built two logarithmic models according to their respective datasets.
 
@@ -31,7 +33,8 @@ The two formulas provided even better correlation coefficients: -0.9810 (for <15
 ## Job Queue System Architecture
 
 At the end of each buffer, a data log of the buffer session information is sent from the viewer's web browser client over to web servers and stored in a PostgreSQL database. An admin dashboard would display a dashboard of aggregated metrics as seen here:
-![](https://cl.ly/7e8725dfcfd6/Monitoring%20Page.png)
+
+<img src="https://cl.ly/7e8725dfcfd6/Monitoring%20Page.png" alt="Internal dashboard of aggregated metrics." width="453px" height="396px">
 
 The stereotypical [three-tier architecture](https://cl.ly/94243f5065b2/Image%202019-08-12%20at%209.00.29%20PM.png) of clients, web server, and database is simple and works pretty well. However, it placed a strain on web servers to execute the storage task to complete the request. During periods of high usage, some requests would return errors and fail to log the data.
 
